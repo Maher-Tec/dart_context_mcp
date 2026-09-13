@@ -2,6 +2,7 @@
 
 <p>
   <a href="https://pub.dev/packages/dart_context_mcp"><img src="https://img.shields.io/pub/v/dart_context_mcp.svg" alt="pub package"/></a>
+  <a href="https://github.com/Maher-Tec/dart_context_mcp/actions/workflows/ci.yml"><img src="https://github.com/Maher-Tec/dart_context_mcp/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-server-6366f1.svg" alt="MCP server"/></a>
 </p>
