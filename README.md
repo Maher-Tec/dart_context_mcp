@@ -124,12 +124,12 @@ Example client config (Claude Code / Claude Desktop style):
 ## CLI
 
 ```powershell
-dart run bin/dart_context_mcp.dart overview "F:\Flutter Apps\OptiTicket\optiticket"
-dart run bin/dart_context_mcp.dart index "F:\Flutter Apps\OptiTicket\optiticket"
-dart run bin/dart_context_mcp.dart symbols --root "F:\Flutter Apps\OptiTicket\optiticket" --query background
-dart run bin/dart_context_mcp.dart context SessionScreen --root "F:\Flutter Apps\OptiTicket\optiticket"
-dart run bin/dart_context_mcp.dart impact SettingsProvider --root "F:\Flutter Apps\OptiTicket\optiticket"
-dart run bin/dart_context_mcp.dart query "app background settings" --root "F:\Flutter Apps\OptiTicket\optiticket"
+dart run bin/dart_context_mcp.dart overview "path/to/your_flutter_project"
+dart run bin/dart_context_mcp.dart index "path/to/your_flutter_project"
+dart run bin/dart_context_mcp.dart symbols --root "path/to/your_flutter_project" --query background
+dart run bin/dart_context_mcp.dart context SessionScreen --root "path/to/your_flutter_project"
+dart run bin/dart_context_mcp.dart impact SettingsProvider --root "path/to/your_flutter_project"
+dart run bin/dart_context_mcp.dart query "app background settings" --root "path/to/your_flutter_project"
 ```
 
 Run `overview` first on a project you haven't seen before — it's the
@@ -144,7 +144,7 @@ without re-parsing prose.
 ## Dependency graph
 
 ```powershell
-dart run bin/dart_context_mcp.dart graph "F:\Flutter Apps\OptiTicket\optiticket" --open
+dart run bin/dart_context_mcp.dart graph "path/to/your_flutter_project" --open
 ```
 
 Writes a self-contained, offline HTML file (default:
