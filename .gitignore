@@ -1,0 +1,11 @@
+# https://dart.dev/guides/libraries/private-files
+# Created by `dart pub`
+.dart_tool/
+pubspec.lock
+
+# Local Claude Code session settings - personal, machine-specific.
+.claude/
+
+# Output of running this tool against itself.
+.dart_context/
+
