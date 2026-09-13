@@ -8,11 +8,24 @@ import 'model.dart';
 /// methods, functions, fields, etc. inside them, structured as a tree
 /// (file -> top-level symbol -> member) via [parentId].
 class SymbolGraphNode {
+  /// Unique id: `file:<path>` for a file, `sym:<path>:<line>:<name>` for a
+  /// symbol.
   final String id;
+
+  /// `file`, or the symbol's kind (class, method, function, ...).
   final String kind;
+
+  /// Display label (filename for a file, symbol name otherwise).
   final String label;
+
+  /// Project-relative, posix-style path of the containing file.
   final String path;
+
+  /// Source line, or `null` for a file node.
   final int? line;
+
+  /// The enclosing node's [id] (a file, or a containing class), or `null`
+  /// for a top-level file node.
   final String? parentId;
 
   SymbolGraphNode({
@@ -29,13 +42,21 @@ class SymbolGraphNode {
 /// (file contains a top-level symbol, a class contains its methods/fields),
 /// or 'imports' for a file-to-file import dependency.
 class SymbolGraphEdge {
+  /// Source node id.
   final String from;
+
+  /// Target node id.
   final String to;
+
+  /// `'contains'` (structural nesting) or `'imports'` (file dependency).
   final String type;
 
   SymbolGraphEdge(this.from, this.to, this.type);
 }
 
+/// The full symbol-level graph for a project: files, their nested symbols,
+/// and both the containment and import relationships between them. See
+/// [buildSymbolGraph].
 class SymbolGraph {
   final List<SymbolGraphNode> nodes;
   final List<SymbolGraphEdge> edges;
@@ -45,6 +66,7 @@ class SymbolGraph {
 
 const _containerKinds = {'class', 'mixin', 'enum', 'extension'};
 
+/// The [SymbolGraphNode.id] for the file at [posixPath].
 String fileNodeId(String posixPath) => 'file:$posixPath';
 
 String _symbolNodeId(String posixPath, DartSymbol symbol) =>

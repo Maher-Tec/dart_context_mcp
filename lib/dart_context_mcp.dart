@@ -39,4 +39,5 @@ export 'src/overview.dart' show buildOverviewReport;
 export 'src/symbol_graph.dart'
     show SymbolGraph, SymbolGraphEdge, SymbolGraphNode, buildSymbolGraph;
 
+/// This package's name, used as the MCP server's advertised identity.
 const String toolName = 'dart_context_mcp';

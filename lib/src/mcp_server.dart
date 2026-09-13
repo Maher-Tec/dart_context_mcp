@@ -15,7 +15,7 @@ const String _protocolVersion = '2025-06-18';
 const String _serverName = 'dart_context_mcp';
 // Kept in sync with pubspec.yaml's `version:` by
 // test/dart_context_mcp_test.dart's "MCP server" group - bump both together.
-const String _serverVersion = '0.10.0';
+const String _serverVersion = '0.10.1';
 
 /// Runs a Model Context Protocol server over stdio: newline-delimited
 /// JSON-RPC 2.0 messages in on [input] (defaults to stdin), same on
@@ -285,6 +285,10 @@ const Map<String, Object?> _formatProperty = {
       're-parsing prose.',
 };
 
+/// MCP `tools/list` definitions for every tool this server exposes
+/// (`dart_overview`, `dart_index`, `dart_symbols`, `dart_context`,
+/// `dart_impact`, `dart_query`, `dart_graph`), each with its JSON-Schema
+/// input schema.
 final List<Map<String, Object?>> toolDefinitions = [
   {
     'name': 'dart_overview',

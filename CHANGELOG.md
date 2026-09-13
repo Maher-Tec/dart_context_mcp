@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.10.1
+
+- Rewrote the README: badges, a one-line pitch, and quick start up top;
+  deep details (full benchmark methodology, dependency graph feature list,
+  indexing/limitations) moved into collapsible sections. Quick start now
+  uses `dart pub global activate` + the plain `dart_context_mcp`
+  executable instead of `dart run bin/...`, matching how someone actually
+  installs this from pub.dev. Also fixed a chart bug where the subtitle
+  and a bar's value label overlapped into garbled text.
+- Replaced a personal local path in the old README's CLI examples with a
+  generic placeholder.
+- pub.dev package-score fixes: shortened the pubspec description (was over
+  the 180-character limit), widened the `analyzer` constraint so a newer
+  Dart SDK can resolve a newer analyzer version, added dartdoc comments
+  across the public API (constructors, fields, and methods that previously
+  had none), and added a runnable `example/`.
+
 ## 0.10.0
 
 - Added an optional `format: json` to `overview`, `context`, `impact`, and

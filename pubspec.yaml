@@ -1,9 +1,9 @@
 name: dart_context_mcp
 description: >-
-  A local Dart/Flutter code context CLI and MCP server for AI coding agents:
-  compact symbol lookup, impact analysis, and a dependency graph, so an
-  agent can understand a project without reading every file.
-version: 0.10.0
+  Local Dart/Flutter code context CLI and MCP server for AI agents: symbol
+  lookup, impact analysis, and a dependency graph, without reading every
+  file.
+version: 0.10.1
 repository: https://github.com/Maher-Tec/dart_context_mcp
 issue_tracker: https://github.com/Maher-Tec/dart_context_mcp/issues
 topics:
@@ -18,7 +18,7 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  analyzer: ^12.1.0
+  analyzer: ">=12.1.0 <15.0.0"
   args: ^2.7.0
   path: ^1.9.0
 

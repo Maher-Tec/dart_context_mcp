@@ -11,12 +11,19 @@ import 'file_scan.dart';
 import 'import_resolver.dart';
 import 'model.dart';
 
+/// Parses every `.dart` file under a project root into a [CodeIndex],
+/// using `package:analyzer`'s AST.
 class DartContextIndexer {
+  /// Project root to scan.
   final String rootPath;
+
+  /// Whether to include generated files (`.g.dart`, `.freezed.dart`, ...),
+  /// which are skipped by default.
   final bool includeGenerated;
 
   DartContextIndexer(this.rootPath, {this.includeGenerated = false});
 
+  /// Scans and parses [rootPath], returning a fresh (unsaved) [CodeIndex].
   CodeIndex build() {
     final root = Directory(rootPath);
     if (!root.existsSync()) {

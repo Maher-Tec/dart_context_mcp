@@ -11,6 +11,9 @@ import 'model.dart';
 import 'overview.dart';
 import 'symbol_graph.dart';
 
+/// Runs the `dart_context_mcp` CLI: parses [arguments] and dispatches to
+/// `overview`/`index`/`symbols`/`context`/`impact`/`query`/`graph`/`mcp`.
+/// Returns the process exit code.
 Future<int> runCli(
   List<String> arguments, {
   String? currentDirectory,

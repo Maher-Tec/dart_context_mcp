@@ -8,23 +8,41 @@ import 'import_resolver.dart';
 import 'indexer.dart';
 import 'model.dart';
 
+/// Name of the directory (under a project root) the index and generated
+/// files (`index.json`, `graph.html`) are stored in.
 const String indexDirectoryName = '.dart_context';
+
+/// Filename of the persisted index within [indexDirectoryName].
 const String indexFileName = 'index.json';
 
 /// Output of a read-only query against a [CodeIndex]. [isError] mirrors the
 /// distinction the CLI makes between stdout/exit-0 and stderr/exit-1, and
 /// maps directly onto the MCP `isError` field on a tool result.
 class CommandOutput {
+  /// The report text (or a JSON-encoded string, when a `format: json`
+  /// request produced this output).
   final String text;
+
+  /// Whether this represents a failure (unknown symbol, invalid input, ...).
   final bool isError;
 
   const CommandOutput(this.text, {this.isError = false});
 }
 
+/// A parsed, queryable snapshot of a Dart/Flutter project: every indexed
+/// file's imports and symbols, plus the read-only queries built on top of
+/// them ([findSymbols], [referencesTo], [query]).
 class CodeIndex {
+  /// Absolute path to the project root this index was built from.
   final String rootPath;
+
+  /// The project's directory name, used for display (e.g. "Overview: name").
   final String projectName;
+
+  /// When this index was built.
   final DateTime generatedAt;
+
+  /// Every indexed `.dart` file.
   final List<DartFileIndex> files;
 
   List<DartSymbol>? _symbolsCache;
@@ -42,11 +60,14 @@ class CodeIndex {
     required this.files,
   });
 
+  /// Absolute path to the persisted index file under [rootPath].
   String get indexPath => p.join(rootPath, indexDirectoryName, indexFileName);
 
+  /// Every symbol across every indexed file, flattened and cached.
   List<DartSymbol> get symbols =>
       _symbolsCache ??= [for (final file in files) ...file.symbols];
 
+  /// Writes this index to [indexPath] as pretty-printed JSON.
   void save() {
     final directory = Directory(p.join(rootPath, indexDirectoryName));
     directory.createSync(recursive: true);
@@ -55,6 +76,8 @@ class CodeIndex {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(toJson()));
   }
 
+  /// Loads the persisted index at [rootPath] if one exists and is still
+  /// fresh, otherwise builds (and persists) a new one from source.
   static CodeIndex loadOrBuild(String rootPath) {
     final normalizedRoot = p.normalize(p.absolute(rootPath));
     final indexFile = File(
@@ -76,6 +99,8 @@ class CodeIndex {
     return index;
   }
 
+  /// The indexed file at [relativePath] (posix-style), or `null` if it
+  /// isn't tracked.
   DartFileIndex? fileFor(String relativePath) {
     for (final file in files) {
       if (file.path == relativePath) return file;
@@ -83,6 +108,9 @@ class CodeIndex {
     return null;
   }
 
+  /// Finds symbols matching [query]: an exact (case-insensitive) name match
+  /// if one exists, otherwise every symbol whose display name contains
+  /// [query] as a substring.
   List<DartSymbol> findSymbols(String query) {
     final normalized = query.toLowerCase();
     final exact = symbols
@@ -96,6 +124,10 @@ class CodeIndex {
         .toList();
   }
 
+  /// Text-based references to [symbolName]: every line (outside comments
+  /// and plain string literals) that mentions it as a whole word, up to
+  /// [limit]. Pass [excludeDeclaration] to skip the declaration's own line.
+  /// See the class-level heuristics this applies for ambiguous names.
   List<CodeReference> referencesTo(
     String symbolName, {
     DartSymbol? excludeDeclaration,
@@ -178,6 +210,8 @@ class CodeIndex {
     return result;
   }
 
+  /// Free-text search across symbol names and source lines, ranked by a
+  /// simple term-frequency score, returning up to [limit] files.
   List<QueryResult> query(String query, {int limit = 10}) {
     final terms = query
         .toLowerCase()
@@ -296,6 +330,7 @@ class CodeIndex {
     return a.containsAll(b);
   }
 
+  /// Serializes this index for [save]/persistence.
   Map<String, Object?> toJson() => {
     'rootPath': rootPath,
     'projectName': projectName,
@@ -303,6 +338,7 @@ class CodeIndex {
     'files': files.map((file) => file.toJson()).toList(),
   };
 
+  /// Deserializes an index previously written by [toJson].
   factory CodeIndex.fromJson(Map<String, Object?> json) => CodeIndex(
     rootPath: json['rootPath'] as String,
     projectName: json['projectName'] as String,
@@ -322,6 +358,8 @@ class CodeIndex {
 class IndexCache {
   final Map<String, CodeIndex> _cache = {};
 
+  /// The cached index for [root], reused as-is if still fresh, otherwise
+  /// reloaded/rebuilt via [CodeIndex.loadOrBuild] and re-cached.
   CodeIndex get(String root) {
     final normalized = p.normalize(p.absolute(root));
     final cached = _cache[normalized];
@@ -331,6 +369,8 @@ class IndexCache {
     return fresh;
   }
 
+  /// Registers [index] as the cached index for [root], e.g. right after an
+  /// explicit rebuild so the next [get] doesn't reload it from disk.
   void put(String root, CodeIndex index) {
     _cache[p.normalize(p.absolute(root))] = index;
   }
@@ -415,18 +455,26 @@ class _CachedLines {
   _CachedLines(this.mtime, this.lines);
 }
 
+/// Parses a `--limit`/`limit` CLI argument, falling back to
+/// [defaultValue] for anything missing or non-positive, and clamping to
+/// a sane range of 1 to 500.
 int parseLimit(String? raw, {required int defaultValue}) {
   final parsed = int.tryParse(raw ?? '');
   if (parsed == null || parsed <= 0) return defaultValue;
   return parsed.clamp(1, 500).toInt();
 }
 
+/// A LOW/MEDIUM/HIGH heuristic risk rating for `dart_impact`, based on how
+/// many distinct files ([fileCount]) and total lines ([referenceCount])
+/// reference a symbol.
 String riskFor(int fileCount, int referenceCount) {
   if (fileCount >= 12 || referenceCount >= 80) return 'HIGH';
   if (fileCount >= 5 || referenceCount >= 25) return 'MEDIUM';
   return 'LOW';
 }
 
+/// Report for the `index` command: file/symbol counts and where the index
+/// was written.
 CommandOutput buildIndexReport(CodeIndex index) {
   final buffer = StringBuffer()
     ..writeln('Indexed ${index.projectName}')
@@ -437,6 +485,8 @@ CommandOutput buildIndexReport(CodeIndex index) {
   return CommandOutput(buffer.toString().trimRight());
 }
 
+/// Report for the `symbols` command: a filtered, capped list of indexed
+/// symbols matching [kind] and/or [query].
 CommandOutput buildSymbolsReport(
   CodeIndex index, {
   String? kind,
@@ -467,6 +517,9 @@ CommandOutput buildSymbolsReport(
   return CommandOutput(buffer.toString().trimRight());
 }
 
+/// Report for the `context` command: full detail on the symbol matching
+/// [name] - location, signature, imports, nearby symbols, and references -
+/// or a disambiguation list if more than one symbol matches.
 CommandOutput buildContextReport(
   CodeIndex index,
   String name, {
@@ -558,6 +611,8 @@ CommandOutput buildContextReport(
   return CommandOutput(buffer.toString().trimRight());
 }
 
+/// Report for the `impact` command: a LOW/MEDIUM/HIGH risk rating and the
+/// grouped, deduped references to the symbol matching [name].
 CommandOutput buildImpactReport(
   CodeIndex index,
   String name, {
@@ -615,6 +670,8 @@ CommandOutput buildImpactReport(
   return CommandOutput(buffer.toString().trimRight());
 }
 
+/// Report for the `query` command: free-text search results ranked by
+/// score.
 CommandOutput buildQueryReport(
   CodeIndex index,
   String query, {

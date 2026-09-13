@@ -8,13 +8,18 @@ import 'import_resolver.dart';
 import 'model.dart';
 import 'symbol_graph.dart';
 
+/// One file in a [DependencyGraph].
 class GraphNode {
+  /// Project-relative, posix-style path.
   final String path;
+
+  /// Number of symbols declared in this file.
   final int symbolCount;
 
   GraphNode(this.path, this.symbolCount);
 }
 
+/// One resolved import: [from] imports [to] (both file paths).
 class GraphEdge {
   final String from;
   final String to;
@@ -22,6 +27,7 @@ class GraphEdge {
   GraphEdge(this.from, this.to);
 }
 
+/// A project's file-level import graph, as built by [buildDependencyGraph].
 class DependencyGraph {
   final List<GraphNode> nodes;
   final List<GraphEdge> edges;
