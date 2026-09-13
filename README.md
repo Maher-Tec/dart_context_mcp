@@ -1,17 +1,59 @@
 # dart_context_mcp
 
-Local Dart and Flutter code context indexer for AI agents — usable either as
-a plain CLI or as a Model Context Protocol (MCP) stdio server.
+<p>
+  <a href="https://pub.dev/packages/dart_context_mcp"><img src="https://img.shields.io/pub/v/dart_context_mcp.svg" alt="pub package"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-server-6366f1.svg" alt="MCP server"/></a>
+</p>
 
-Outputs are kept compact with `file:line` anchors so an agent can inspect a
-large Flutter project without reading whole files.
+**Give your AI coding agent a map of your Dart/Flutter project instead of
+letting it grep and guess.**
 
-## Token efficiency (measured)
+A local CLI + [MCP](https://modelcontextprotocol.io) server that indexes a
+Dart/Flutter project and answers the questions an agent normally burns
+tokens finding out for itself: what does this project depend on, where is
+this symbol, what breaks if I change it, where does X happen. Everything
+local — no network calls, no code ever leaves your machine.
 
-Two different tasks, each done two ways, against the same real 46-file
-Flutter project (HoloValue) — plain grep + full-file reads vs. this tool:
+## Quick start
+
+```bash
+dart pub global activate dart_context_mcp
+dart_context_mcp overview path/to/your_flutter_project
+```
+
+`overview` is the best first call on any project — dependencies, folder
+layout, entry point, and the files everything else depends on, in one
+compact call.
+
+**As an MCP server** (Claude Code, Claude Desktop, Cursor, or any MCP client):
+
+```json
+{
+  "mcpServers": {
+    "dart_context": {
+      "command": "dart_context_mcp",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+That exposes `dart_overview`, `dart_index`, `dart_symbols`, `dart_context`,
+`dart_impact`, `dart_query`, and `dart_graph` as tools your agent can call
+directly.
+
+## Why
 
 ![Bytes read to accomplish the same task: task 1 goes from 29.4 KB to 4.3 KB (6.9x smaller), task 2 goes from 53.5 KB to 4.0 KB (13.3x smaller)](doc/token_efficiency.svg)
+
+Two real tasks, done two ways, on the same 46-file Flutter project — plain
+`grep` + reading full files, vs. this tool. **6.9x–13.3x fewer bytes** for
+the same outcome, because the tool already knows the project structure
+instead of re-deriving it from scratch on every question.
+
+<details>
+<summary>Full methodology, both tasks, and honest caveats</summary>
 
 ### Task 1 — understand a feature and its blast radius
 
@@ -40,9 +82,9 @@ state, screen, repository interface, repository impl) in full:
 | `impact CollectionState` | 841 |
 | **Total** | **4,395 bytes** |
 
-**≈6.9x fewer bytes (≈85% reduction).** `impact` also already groups,
-dedupes, and risk-rates the references — work a no-tool agent still has to
-do itself after reading raw grep output.
+**≈6.9x fewer bytes.** `impact` also already groups, dedupes, and
+risk-rates the references — work a no-tool agent still has to do itself
+after reading raw grep output.
 
 ### Task 2 — fuzzy "where does X happen" search
 
@@ -51,187 +93,110 @@ new permission check" — the symbol name isn't known up front, so this
 exercises `query` instead of `context`/`impact`.
 
 **Without this tool** — grep for permission/camera/image-picker terms, then
-read the 4 matching files in full:
+read the 4 matching files in full: **54,785 bytes** (3,975 grep + 50,810
+source).
 
-| Step | Bytes |
+**With this tool** — one `query "camera permission image picker"` call:
+**4,121 bytes**.
+
+**≈13.3x fewer bytes** — but with a real quality caveat: `query`'s
+free-text term matching is looser than grep's exact patterns. Splitting the
+query into individual words pulled in 6 extra files that only matched the
+generic word "image" alongside the 4 truly relevant ones. Nothing grep
+found was *missed* — all 4 real files ranked in the top 6 — but a real
+agent has to skim past some noise that grep's tighter phrasing wouldn't
+have produced.
+
+**Caveats:** these are two tasks on one project, and "which files a
+thorough agent reads" is a judgment call — a lazier read is smaller, a more
+paranoid one is bigger. Treat the 6.9x–13.3x range as a representative
+order of magnitude, not a guaranteed number for every task or project.
+
+</details>
+
+## Tools
+
+| Tool | Purpose |
 | --- | --- |
-| `grep -rn` for permission/camera/image_picker terms | 3,975 |
-| 4 full source files | 50,810 |
-| **Total** | **54,785 bytes** |
+| `overview` | Dependencies, SDK constraint, folder breakdown, entry point, and the most depended-upon files — the best first call on an unfamiliar project. |
+| `index` | Build/rebuild the symbol index. |
+| `symbols` | List symbols, filtered by kind and/or text. |
+| `context` | Everything about one symbol: location, signature, imports, nearby symbols, references. |
+| `impact` | Blast-radius estimate for changing a symbol (LOW/MEDIUM/HIGH), grouped and deduped. |
+| `query` | Free-text search across symbol names and source lines. |
+| `graph` | An interactive, offline HTML dependency graph — pan/zoom, drill into symbols, circular-import detection. |
 
-**With this tool** — one call:
+Each is a CLI command (`dart_context_mcp <tool> ...`) and an MCP tool
+(`dart_<tool>`) with the same behavior. `overview`, `context`, `impact`,
+and `query` accept `--format json` (CLI) / `format: "json"` (MCP) to get
+structured data instead of the default compact text.
 
-| Step | Bytes |
-| --- | --- |
-| `query "camera permission image picker"` | 4,121 |
-| **Total** | **4,121 bytes** |
-
-**≈13.3x fewer bytes (≈92.5% reduction)** — but with a real quality caveat:
-`query`'s free-text term matching is looser than grep's exact patterns.
-Splitting the query into individual words ("camera", "permission", "image",
-"picker") pulled in 6 extra files that only matched the generic word
-"image" (a card entity, an API service, a grid widget) alongside the 4
-truly relevant ones. Nothing grep found was *missed* — all 4 real files
-ranked in the top 6 results — but a real agent has to skim past some noise
-that grep's tighter phrasing wouldn't have produced.
-
-### Caveats
-
-These are two tasks on one project, and "which files a thorough agent
-reads" is a judgment call — a lazier read is smaller, a more paranoid one
-is bigger. Treat the 6.9x–13.3x range as a representative order of
-magnitude, not a guaranteed number for every task or project, and `query`'s
-precision as a real (if minor) tradeoff against its size.
-
-## MCP server
-
-```powershell
-dart run bin/dart_context_mcp.dart mcp
+```bash
+dart_context_mcp symbols --root path/to/project --query background
+dart_context_mcp context SessionScreen --root path/to/project
+dart_context_mcp impact SettingsProvider --root path/to/project
+dart_context_mcp query "app background settings" --root path/to/project
+dart_context_mcp graph path/to/project --open
 ```
 
-This starts a standard MCP stdio server (newline-delimited JSON-RPC 2.0).
-Point any MCP-compatible client (Claude Code, Claude Desktop, etc.) at this
-command. It exposes seven tools, each taking a `root` argument (the absolute
-path to the Dart/Flutter project):
-
-| Tool             | Purpose                                                        |
-| ---------------- | --------------------------------------------------------------- |
-| `dart_overview`  | The best first call on an unfamiliar project: dependencies, SDK constraint, folder breakdown, entry point, and the most depended-upon files — one cheap call instead of several exploratory reads. |
-| `dart_index`     | Build/rebuild the index for a project root.                     |
-| `dart_symbols`   | List symbols, optionally filtered by `kind` and/or `query`.     |
-| `dart_context`   | Everything known about one symbol: location, signature, imports, nearby symbols, references. |
-| `dart_impact`    | Blast-radius estimate for changing a symbol (LOW/MEDIUM/HIGH).  |
-| `dart_query`     | Free-text search across symbol names and source lines.          |
-| `dart_graph`     | Writes an interactive HTML file-dependency graph to disk and returns its path. |
-
-The server keeps one parsed index per project root alive in memory across
-calls (with a lightweight staleness check before each reuse), so repeated
-calls against the same project don't re-parse the codebase every time.
-
-Example client config (Claude Code / Claude Desktop style):
-
-```json
-{
-  "mcpServers": {
-    "dart_context": {
-      "command": "dart",
-      "args": ["run", "bin/dart_context_mcp.dart", "mcp"]
-    }
-  }
-}
-```
-
-## CLI
-
-```powershell
-dart run bin/dart_context_mcp.dart overview "path/to/your_flutter_project"
-dart run bin/dart_context_mcp.dart index "path/to/your_flutter_project"
-dart run bin/dart_context_mcp.dart symbols --root "path/to/your_flutter_project" --query background
-dart run bin/dart_context_mcp.dart context SessionScreen --root "path/to/your_flutter_project"
-dart run bin/dart_context_mcp.dart impact SettingsProvider --root "path/to/your_flutter_project"
-dart run bin/dart_context_mcp.dart query "app background settings" --root "path/to/your_flutter_project"
-```
-
-Run `overview` first on a project you haven't seen before — it's the
-cheapest way to get oriented (dependencies, folder layout, entry point,
-which files are the real hubs) before drilling into specific symbols.
-
-`overview`, `context`, `impact`, and `query` accept `--format json` to get
-the same data as a single JSON object instead of the default compact text —
-useful when a caller needs one specific field (a risk level, a file path)
-without re-parsing prose.
-
-## Dependency graph
-
-```powershell
-dart run bin/dart_context_mcp.dart graph "path/to/your_flutter_project" --open
-```
+<details>
+<summary>Dependency graph details</summary>
 
 Writes a self-contained, offline HTML file (default:
-`.dart_context/graph.html`) visualizing the project's file import graph:
+`.dart_context/graph.html`, or `--out <path>`) — no CDN, no network, opens
+straight from `file://`.
 
-- **Switchable layouts**: **Layered** (files in columns by import depth,
-  entry points on the left, leaf dependencies on the right), **Force**
-  (classic force-directed placement — spreads chain-shaped graphs into a
-  compact 2D shape instead of a flat line), and **Radial** (concentric rings
-  by distance from the graph's entry points, spiraling outward). Switch any
-  time from the sidebar; drill-down and folder-collapse state carry over.
-- **Folder collapsing for large projects**: past ~40 files, the graph starts
-  collapsed to one level of folders (`lib/screens`, `lib/models`, ...) so it
-  stays readable instead of turning into a hairball. Double-click a folder
-  to drill into it; collapse it back from the sidebar's "Expanded" list, or
-  use "Expand all" / "Collapse to folders".
+- **Three switchable layouts**: Layered (columns by import depth), Force
+  (spreads chain-shaped graphs into a compact 2D shape), Radial
+  (concentric rings from the entry points outward). Switch anytime;
+  drill-down state carries over.
+- **Folder collapsing** past ~40 files, so large projects stay readable
+  instead of turning into a hairball. Double-click to drill in.
 - **Symbol-level drill-down**: double-click a file to reveal its
-  classes/mixins/enums/extensions/functions, and double-click a class to
-  reveal its methods/fields/constructors — each colored by kind, connected
-  by "contains" edges distinct from the "imports" edges between files.
-  Single-click always just focuses a node (shows details in the sidebar)
-  without expanding it.
-- Node size reflects both symbol count and fan-in (files/folders many others
-  depend on stand out as hubs). Hubs also get a gentle breathing glow;
-  circular-dependency nodes pulse red; import edges carry a small dot
-  animating in the import direction.
-- Hover a node for a tooltip (full path, imports/imported-by counts, symbol
-  count, cycle membership); click a file to pin its imports/importers in the
-  sidebar.
-- Pan (drag background), zoom (scroll), drag nodes to reposition, "Fit view"
-  and "Reset layout" buttons, and "Export PNG".
-- Search box to filter/highlight files by path.
-- Circular imports are detected automatically (Tarjan's SCC algorithm),
-  drawn as red curved arrows (so both directions of a cycle stay visible
-  instead of overlapping), with a clickable list in the sidebar. Detection
-  re-runs on whatever level is currently visible, so a folder-level circular
-  dependency with no single-file cycle (screens → models → services →
-  widgets → screens) is caught too, not just per-file cycles — and a real
-  file-level cycle hidden entirely inside one collapsed folder is flagged
-  amber rather than silently disappearing.
+  classes/functions, a class to reveal its methods/fields.
+- Node size reflects fan-in; hubs glow, circular-dependency nodes pulse
+  red, import edges carry an animated direction indicator.
+- Circular imports detected automatically (Tarjan's SCC), highlighted and
+  listed in the sidebar — re-run fresh at whatever collapse level is
+  currently visible, so folder-level cycles are caught too.
+- Pan/zoom/drag, search, click a file to see its imports/importers,
+  "Export PNG".
 
-No CDN, no network access — it's plain HTML/CSS/JS and opens straight from
-`file://`. Pass `--out <path>` to choose the output location, or `--open`
-to launch it in the default browser immediately.
+</details>
 
-## What It Indexes
+<details>
+<summary>What gets indexed, and known limitations</summary>
 
-- Dart files under the selected project root
-- classes, mixins, enums, enum constants, extensions, typedefs
-- top-level functions and variables
-- constructors (unnamed constructors are indexed as `Class.new`, named ones
-  as `Class.named`, matching Dart 3's constructor-tearoff syntax)
-- methods and fields
-- imports
+**Indexed:** classes, mixins, enums, enum constants, extensions, typedefs,
+top-level functions/variables, constructors (`Class.new` / `Class.named`),
+methods, fields, imports. Generated files (`.g.dart`, `.freezed.dart`,
+`.mocks.dart`) are skipped by default (`--include-generated` to include
+them). The index is cached in `.dart_context/index.json` and rebuilt
+automatically when tracked files change.
 
-Generated files such as `.g.dart`, `.freezed.dart`, and `.mocks.dart` are
-skipped by default (pass `includeGenerated: true` / `--include-generated` to
-include them).
+**Limitations:** `context`/`impact`/`query` find references by scanning
+source text for a symbol's bare name, not by resolving types through the
+analyzer. Two heuristics narrow the common false positives:
 
-The index is cached under `.dart_context/index.json` in the project root and
-is rebuilt automatically whenever a tracked file changes, or a `.dart` file
-is added or removed.
+- A mention inside a `//` comment or a plain string literal doesn't count
+  (string interpolation like `$name`/`${expr}` still does — that's real
+  code). Line-based, not a real lexer, so multi-line strings/comments can
+  still slip through.
+- When a name is declared more than once (two unrelated classes both
+  called `Item`), references are scoped to the declaring file plus files
+  that directly import it. Doesn't follow transitive `export` re-exports.
 
-## Limitations
+Treat these tools as a fast way to narrow down where to look, not a
+substitute for reading the flagged lines — full analyzer-based type
+resolution would close the remaining gaps but is a much heavier lift.
 
-`dart_context`, `dart_impact`, and `dart_query` find references by scanning
-source text for the symbol's bare name (a word-boundary match), not by
-resolving types through the analyzer. This is fast and dependency-free, and
-two heuristics narrow the common false-positive cases:
-
-- A mention inside a `//` comment or a plain string literal is excluded
-  (interpolated code like `$name`/`${expr}` inside a string still counts,
-  since that's a real usage). This is line-based, not a real lexer, so a
-  multi-line string or `/* ... */` block comment can still slip through.
-- When a name is declared more than once in the project (e.g. two unrelated
-  classes both called `Item`), references are scoped to the declaring file
-  plus files that directly import it — a file that imports the *other*
-  `Item` won't be attributed to this one. This doesn't follow transitive
-  re-exports (`export` barrel files), and it can't tell two same-named
-  symbols apart if both happen to be imported into the same file.
-
-Treat these tools as a fast way to narrow down where to look, not as a
-substitute for reading the flagged lines — full type resolution through
-the analyzer would close the remaining gaps but is a much heavier lift.
+</details>
 
 ## Roadmap
 
 - Richer analyzer-backed (type-resolved) references
-- Package publishing metadata
 - Optional embeddings for semantic query
+
+## License
+
+[MIT](LICENSE)
